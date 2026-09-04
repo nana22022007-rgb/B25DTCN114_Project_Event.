@@ -5,7 +5,6 @@ from app.models.event import Event
 from app.models.event_staff import EventStaff
 from app.models.event_task import (
     EventTask,
-    TaskComment,
     TaskPriority,
     TaskStatus,
 )
@@ -22,7 +21,7 @@ def seed_data():
         # ------------------------------------------------------------------
         users_data = [
             {
-                "email": "admin@gmail.com",
+                "email": "  ",
                 "full_name": "System Admin",
                 "password_hash": get_password_hash("admin123"),
                 "role": "ADMIN",
@@ -67,26 +66,55 @@ def seed_data():
         staff1 = users_db["staff1@gmail.com"]
         staff2 = users_db["staff2@gmail.com"]
 
-        # ------------------------------------------------------------------
         # 2. SEED EVENT & EVENT STAFF
-        # ------------------------------------------------------------------
-        event_title = "Sự kiện Tech Conference 2026"
-        event = db.query(Event).filter(Event.title == event_title).first()
+        event_name = "Sự kiện Tech Conference 2026"
+        
+        # Kiểm tra cột Tên
+        event_attr = getattr(Event, "name", getattr(Event, "title", None))
+        event = db.query(Event).filter(event_attr == event_name).first() if event_attr else None
 
         now = datetime.now(timezone.utc)
 
         if not event:
-            event = Event(
-                title=event_title,
-                description="Hội thảo công nghệ quy mô 500 khách mời.",
-                location="Trung tâm Hội nghị Quốc gia",
-                start_time=now + timedelta(days=7),
-                end_time=now + timedelta(days=8),
-                owner_id=manager.id,
-            )
+            event_kwargs = {
+                "description": "Hội thảo công nghệ quy mô 500 khách mời.",
+                "owner_id": manager.id,
+            }
+            
+            # Gán Tên
+            if hasattr(Event, "name"):
+                event_kwargs["name"] = event_name
+            elif hasattr(Event, "title"):
+                event_kwargs["title"] = event_name
+
+            # Gán Địa điểm
+            if hasattr(Event, "location"):
+                event_kwargs["location"] = "Trung tâm Hội nghị Quốc gia"
+            elif hasattr(Event, "address"):
+                event_kwargs["address"] = "Trung tâm Hội nghị Quốc gia"
+
+            # Gán Thời gian Bắt đầu
+            if hasattr(Event, "start_time"):
+                event_kwargs["start_time"] = now + timedelta(days=7)
+            elif hasattr(Event, "start_date"):
+                event_kwargs["start_date"] = now + timedelta(days=7)
+            elif hasattr(Event, "start_at"):
+                event_kwargs["start_at"] = now + timedelta(days=7)
+
+            # Gán Thời gian Kết thúc
+            if hasattr(Event, "end_time"):
+                event_kwargs["end_time"] = now + timedelta(days=8)
+            elif hasattr(Event, "end_date"):
+                event_kwargs["end_date"] = now + timedelta(days=8)
+            elif hasattr(Event, "end_at"):
+                event_kwargs["end_at"] = now + timedelta(days=8)
+
+            event = Event(**event_kwargs)
             db.add(event)
             db.flush()
-            print(f" -> Đã tạo Event: {event.title} (Owner: {manager.full_name})")
+            
+            display_title = getattr(event, "name", getattr(event, "title", "Event"))
+            print(f" -> Đã tạo Event: {display_title} (Owner: {manager.full_name})")
 
             # Gán Manager và Staff vào EventStaff
             staff_list = [
@@ -145,15 +173,6 @@ def seed_data():
             db.add_all(tasks)
             db.flush()
             print(" -> Đã tạo 3 Task mẫu cho Event.")
-
-            # Add comment mẫu vào task đầu tiên
-            sample_comment = TaskComment(
-                task_id=tasks[0].id,
-                user_id=staff1.id,
-                content="Em đã gửi bản draft kịch bản qua Zalo, anh Manager xem qua giúp em nhé!",
-            )
-            db.add(sample_comment)
-            print(" -> Đã tạo Comment mẫu cho Task.")
 
         db.commit()
         print("✅ Seed dữ liệu hoàn tất thành công!")
